@@ -1,0 +1,10 @@
+packages:
+  - 'lectures/*'
+
+shamefullyHoist: true
+
+allowBuilds:
+  playwright-chromium: true
+
+minimumReleaseAgeExclude:
+  - slidev-theme-tud-db@0.0.7

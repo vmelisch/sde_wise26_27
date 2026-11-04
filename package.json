@@ -1,0 +1,11 @@
+{
+  "name": "sde_wise26_27",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev:open-table-formats": "pnpm --filter @sde/open-table-formats dev",
+    "build:open-table-formats": "pnpm --filter @sde/open-table-formats build",
+    "build:all": "node scripts/build-all.mjs"
+  }
+}

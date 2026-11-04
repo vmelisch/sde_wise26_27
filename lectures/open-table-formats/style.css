@@ -1,0 +1,169 @@
+/* Deck-level styles. Slide geometry is in canvas px (960×540). */
+
+/* Tints: brand colours mixed with white, so text on them stays readable.
+   palette.ts maps names to these for components. */
+:root {
+  --tint-blue: #cbd5ec;   /* --db-heading-blue at 25% */
+  --tint-teal: #c6e8e0;   /* --db-accent1 at 30% */
+  --tint-yellow: #fdebac; /* --db-accent4 at 35% */
+  --tint-purple: #e2ccdc; /* --db-accent6 at 28% */
+  --tint-red: #f9d3cb;    /* --db-accent5 at 25% */
+}
+
+/* Line content up with the bullet text: the theme indents list text by
+   0.6em + 1.1em, and Slidev pads each <li> by another 0.2em. */
+.bullet-indent {
+  padding-left: 1.9em;
+}
+
+/* The script's open issues of a plain data lake, i1–i4, as a badge: number
+   and short name (components/Issue.vue). */
+.issue {
+  display: inline-block;
+  padding: 0.3em 5px;
+  border-radius: 3px;
+  background: var(--db-accent5);
+  color: #fff;
+  font-size: var(--db-fs-table);
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  /* Trim the box to the glyphs (cap height down to the baseline), so the
+     even padding centres them; then centre the box on the surrounding text. */
+  text-box: trim-both cap alphabetic;
+  vertical-align: middle;
+}
+.issue b {
+  margin-right: 0.45em;
+  font-family: var(--slidev-code-font-family);
+  font-weight: 700;
+}
+/* …and a badge on a slide that solves it. (Not .fixed: that is a UnoCSS utility.) */
+.issue.solved {
+  background: var(--db-accent1);
+}
+
+/* Architecture stacks (intro): a monolithic DBMS vs. disaggregated layers. */
+.arch {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  font-size: var(--db-fs-small);
+}
+.arch-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 190px;
+}
+.arch-title {
+  font-weight: 700;
+}
+.arch-mono {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  border: 1.5px solid var(--db-text-soft);
+  border-radius: 6px;
+}
+.arch-split {
+  gap: 12px;
+}
+.arch-layer {
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1.25;
+}
+.arch-layer small {
+  display: block;
+  color: var(--db-text);
+  font-size: var(--db-fs-table);
+}
+
+/* Compute nodes over one storage layer (disaggregation, data lake). Each node
+   draws its own line down to the storage box. */
+.nodes {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 34px;
+}
+.node {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 78px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: var(--tint-blue);
+  font-size: var(--db-fs-small);
+}
+.node > * {
+  grid-area: 1 / 1;
+}
+.node::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  height: 34px;
+  border-left: 1.5px solid var(--db-table-rule);
+}
+.node.more {
+  min-width: 0;
+  background: none;
+}
+.node.more::after {
+  display: none;
+}
+.store {
+  padding: 8px 12px;
+  border: 1.5px solid var(--db-text-soft);
+  border-radius: 6px;
+  font-size: var(--db-fs-small);
+}
+.store-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+}
+.store-tag {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--tint-red);
+  font-weight: 400;
+  font-size: var(--db-fs-table);
+}
+
+/* Steps joined by FlowArrows (Parquet: encodings, then a codec). The steps
+   are .arch-layer boxes. */
+.pipe {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--db-fs-small);
+}
+
+/* Small grey label under a figure. */
+.fig-note {
+  margin-top: 6px;
+  font-size: var(--db-fs-caption);
+  font-style: italic;
+  color: var(--db-text);
+}
+
+/* Paper / spec reference on a slide. */
+.ref {
+  font-size: var(--db-fs-caption);
+  color: var(--db-text);
+}
+
+/* Section summaries (shown vs. alternatives): row labels on one line, so the
+   alternatives column gets the width. */
+.recap td:first-child {
+  white-space: nowrap;
+}
+.recap th:nth-child(3) {
+  width: 55%;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@sde/open-table-formats",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build --without-notes",
+    "export": "slidev export"
+  },
+  "dependencies": {
+    "@slidev/cli": "^52.20.1",
+    "vue": "^3.5.33"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.3.3",
+    "slidev-addon-gsap": "^0.0.6",
+    "slidev-theme-tud-db": "0.0.7"
+  }
+}
