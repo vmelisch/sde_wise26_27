@@ -1649,6 +1649,319 @@ import { useTl } from 'slidev-addon-gsap'
 const tl = useTl()
 onMounted(() => {
   tl.step()
+    // click 1: freshness and isolation pull in opposite directions
+    .fadeIn('.t-tension')
+    .step()
+})
+</script>
+
+# Transactions and Analytics
+
+::left::
+
+## Two workloads
+
+- OLTP: short transactions, point access → rows, WAL, locks / MVCC
+- OLAP: large scans → columns, compression, parallelism
+- Analytics on recent commits: fraud detection, dashboards, monitoring
+
+<div class="t-tension">
+
+## Trade-off
+
+- Freshness: needs tight coupling to the transactional state
+- Isolation: scans must not slow down transactions → decoupling
+- Every architecture picks a point in between
+
+</div>
+
+::right::
+
+<div class="arch-col" style="width: 340px">
+<div class="arch-layer" style="background: var(--tint-blue)">one engine<small>single DBMS: Postgres, HyPer, SAP HANA</small></div>
+<div class="arch-layer" style="background: var(--tint-blue)">n engines, one system<small>shared storage, replicated storage</small></div>
+<div class="arch-layer" style="background: var(--tint-red)">n systems<small>federation, DWH + ETL, CDC</small></div>
+<div class="arch-layer" style="background: var(--tint-purple)">open lake<small>lakehouse, LTAP</small></div>
+</div>
+<p class="fig-note">Where the two workloads meet, from one engine to the open lake</p>
+
+---
+layout: two-cols-header
+columns: 44fr 56fr
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: the read nodes, refreshed from the WAL stream
+    .fadeIn('.sd-s1, .t-read')
+    .step()
+    // click 2: what an analytical query sees
+    .fadeIn('.t-sees')
+    .step()
+})
+</script>
+
+# Shared Storage <Family k="system" />
+
+::left::
+
+## Write path
+
+- One primary executes all writes
+- Commit: WAL durable in a replicated log store
+- Page servers replay the WAL into pages
+
+<div class="t-read">
+
+## Read path
+
+- n read nodes on the same pages: row or columnar
+- Caches refreshed from the WAL stream
+- Own writes on request: wait for the session's commit LSN (log position)
+
+</div>
+<div class="t-sees">
+
+::takeaway{label="Analytics sees"}
+Typically milliseconds behind; its own writes on request
+::
+
+</div>
+
+::right::
+
+<SysDiagram of="shared" />
+
+<p class="fig-note">W: transaction writing, R: analytical query reading. Examples: Aurora, AlloyDB, Azure SQL Hyperscale, Neon, PolarDB</p>
+
+---
+layout: two-cols-header
+columns: 44fr 56fr
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: the columnar learner, fed by the Raft log
+    .fadeIn('.sd-s1, .t-read')
+    .step()
+    // click 2: what an analytical query sees
+    .fadeIn('.t-sees')
+    .step()
+})
+</script>
+
+# Replicated Storage <Family k="system" />
+
+::left::
+
+## Write path
+
+- Stateless SQL nodes, distributed transactions (2PC)
+- Timestamp oracle (TSO): one global commit order
+- Each key range replicated by Raft: commit on a majority
+
+<div class="t-read">
+
+## Read path
+
+- Columnar replica as a Raft learner: gets the log, no vote
+- Waits until it has applied the leader's commit index, reads at the query timestamp
+
+</div>
+<div class="t-sees">
+
+::takeaway{label="Analytics sees"}
+A fresh, consistent snapshot of all commits
+::
+
+</div>
+
+::right::
+
+<SysDiagram of="replicated" />
+
+<p class="fig-note">Example: TiDB (TiKV + TiFlash). Similar: OceanBase column-store replicas (Paxos, no strongly consistent reads)</p>
+
+---
+layout: two-cols-header
+columns: 44fr 56fr
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: one engine queries all sources in place
+    .fadeIn('.sd-s1, .t-read')
+    .step()
+    // click 2: what an analytical query sees
+    .fadeIn('.t-sees')
+    .step()
+})
+</script>
+
+# Federation <Family k="systems" />
+
+::left::
+
+## Write path
+
+- Writes stay in each source, under its own transactions
+
+<div class="t-read">
+
+## Read path
+
+- One SQL interface across systems, no copy
+- Connectors push filters and aggregates down, where the source supports it
+- Joins across sources in the federated engine
+- No isolation: every query loads the sources
+
+</div>
+<div class="t-sees">
+
+::takeaway{label="Analytics sees"}
+Live data per source, but no common snapshot
+::
+
+</div>
+
+::right::
+
+<SysDiagram of="federation" />
+
+<p class="fig-note">Examples: Trino connectors, Denodo, BigQuery federated queries, PostgreSQL FDW</p>
+
+---
+layout: two-cols-header
+columns: 44fr 56fr
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: the nightly ETL into the warehouse
+    .fadeIn('.sd-s1, .t-read')
+    .step()
+    // click 2: what an analytical query sees
+    .fadeIn('.t-sees')
+    .step()
+})
+</script>
+
+# Data Warehouse + ETL <Family k="systems" />
+
+::left::
+
+## Write path
+
+- OLTP writes in the source systems only
+
+<div class="t-read">
+
+## Read path
+
+- ETL in load windows: extract, transform (cleanse, integrate, keys, history), load
+- DWH: star / snowflake schemas, BI tools; data marts per department
+- Queries never touch the OLTP systems
+
+</div>
+<div class="t-sees">
+
+::takeaway{label="Analytics sees"}
+The state of the last load: hours to a day old
+::
+
+</div>
+
+::right::
+
+<SysDiagram of="dwh" />
+
+<p class="fig-note">Examples: Teradata, SAP BW; Snowflake, Redshift, BigQuery with ETL tools</p>
+
+---
+layout: two-cols-header
+columns: 44fr 56fr
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: changes decoded from the log, applied to a copy
+    .fadeIn('.sd-s1, .t-read')
+    .step()
+    // click 2: what an analytical query sees
+    .fadeIn('.t-sees')
+    .step()
+})
+</script>
+
+# Change Data Capture (CDC) <Family k="systems" />
+
+::left::
+
+## Write path
+
+- ACID transactions in the OLTP DBMS
+- Every change logged in the WAL
+
+<div class="t-read">
+
+## Read path
+
+- Logical decoding (Debezium): committed transactions, in commit order
+- Kafka: one topic per table; transaction boundaries lost by default
+- Into Iceberg: one commit per table and checkpoint, seconds to minutes; small files, equality deletes → compaction
+
+</div>
+<div class="t-sees">
+
+::takeaway{label="Analytics sees"}
+A copy seconds to minutes behind, consistent per table at best
+::
+
+</div>
+
+::right::
+
+<SysDiagram of="cdc" />
+
+<p class="fig-note">Examples: Debezium + Kafka, Aurora zero-ETL → Redshift, Fabric Mirroring, pg_mooncake</p>
+
+---
+layout: two-cols-header
+columns: 50fr 50fr
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
     // click 1: one storage layer for both workloads
     .fadeIn('.t-ltap')
     .step()

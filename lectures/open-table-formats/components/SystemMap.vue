@@ -10,7 +10,7 @@ const ROW_H = 44
 const PLOT_H = 6 * ROW_H
 const rowY = (level: number) => (5 - level) * ROW_H + ROW_H / 2 // centre of level 0…5
 
-const X_LABELS = ['one engine', 'n engines, one system', 'n systems, copies', 'open lake']
+const X_LABELS = ['one engine', 'n engines, one system', 'n systems', 'open lake']
 const Y_LABELS = ['no guarantee', 'last batch load', 'seconds behind', 'own writes', 'fresh snapshot', 'same transaction']
 
 type Sys = { name: string, ex: string, col: number, level: number, tint: string, cls?: string }
@@ -20,6 +20,7 @@ const SYSTEMS: Sys[] = [
   { name: 'shared storage', ex: 'Aurora, Neon', col: 1, level: 3, tint: 'blue' },
   { name: 'CDC', ex: 'Debezium, zero-ETL', col: 2, level: 2, tint: 'red' },
   { name: 'DWH + ETL', ex: 'nightly loads', col: 2, level: 1, tint: 'red' },
+  { name: 'federation', ex: 'Trino, Postgres FDW', col: 2, level: 0, tint: 'red' },
   { name: 'data lake', ex: 'Parquet on S3', col: 3, level: 0, tint: 'purple' },
   { name: 'lakehouse', ex: 'Iceberg, Delta Lake', col: 3, level: 1.5, tint: 'purple' },
   { name: 'LTAP (claimed)', ex: 'Lakebase', col: 3, level: 4, tint: 'purple', cls: 'sm-ltap sm-claimed' },
