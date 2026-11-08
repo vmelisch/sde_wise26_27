@@ -8,6 +8,7 @@
   --tint-yellow: #fdebac; /* --db-accent4 at 35% */
   --tint-purple: #e2ccdc; /* --db-accent6 at 28% */
   --tint-red: #f9d3cb;    /* --db-accent5 at 25% */
+  --tint-grey: #e4e4e4;   /* neutral: metadata, as FileView's magic bytes */
 }
 
 /* Line content up with the bullet text: the theme indents list text by

@@ -813,6 +813,8 @@ import { onMounted } from 'vue'
 import { useTl } from 'slidev-addon-gsap'
 
 const ids = [101, 103, 101, 104]
+// what a reader needs to unpack them: how many values, how many bits each
+const packHeader = [`${ids.length} values`, '7 bits']
 const discount = [null, null, '5.00', null, null, null, '10.00', null, null]
 const valid = discount.map(d => (d === null ? 0 : 1))
 const present = discount.filter(d => d !== null)
@@ -843,6 +845,7 @@ onMounted(() => {
 - Small integers waste most of their 32 bits on leading zeros
 - Each value gets only the bits the block's largest value needs
 - `product_id` ≤ 112 < 2⁷: 7 instead of 32 bits
+- A small header stores the value count and the bit width
 - Classic term: null suppression ("null" = zero bytes, not SQL NULL)
 
 <div class="t-null">
@@ -858,8 +861,9 @@ onMounted(() => {
 ::right::
 
 <Bits class="ids" caption="product_id INT32" :values="ids" :width="32" :sig="7" note="128 bits" />
-<div class="t-pack mt-3">
-<Bits class="packed" caption="bit-packed: 7 bits per value" :values="ids" :width="7" packed note="28 bits" />
+<div class="t-pack flex items-end gap-2 mt-3">
+<Cells caption="header: 16 bits" :vals="packHeader" tint="grey" />
+<Bits class="packed" caption="bit-packed: 7 bits per value" :values="ids" :width="7" packed note="44 bits" />
 </div>
 <div class="t-null mt-6">
 <Cells caption="discount DECIMAL(10,2): an 8-byte slot per row" :vals="discount" tint="red" :w="44" note="72 B" />
@@ -945,6 +949,8 @@ import { useTl } from 'slidev-addon-gsap'
 const ids = [100231, 100233, 100234, 100237, 100238, 100241]
 const deltas = ids.slice(1).map((id, i) => id - ids[i])
 const encoded = [ids[0], ...deltas.map(d => `+${d}`)]
+// the header of the packed block: first value, value count, bit width
+const deltaHeader = [ids[0], `${deltas.length} values`, '2 bits']
 
 const tl = useTl()
 onMounted(() => {
@@ -952,9 +958,16 @@ onMounted(() => {
     // click 1: differences to the previous id
     .fadeIn('.t-delta')
     .step()
-    // click 2: the differences need only 2 bits each
-    .fadeIn('.t-casc')
+    // click 2: stored as INT32, the small differences are mostly leading zeros
+    .fadeIn('.t-bin')
     .step()
+    // click 3: so bit-pack them, as on the bit-packing slide: only the
+    // 2 significant bits of each delta stay
+    .fadeIn('.t-casc')
+    .to('.dbin .bt-pads', { opacity: 0.25, duration: 0.4 }, '<')
+  deltas.forEach((_, i) =>
+    tl.morph(`.dbin .bt-v${i} .bt-sigs`, `.dpacked .bt-v${i}`, { keep: true, duration: 0.4 }))
+  tl.step()
 })
 </script>
 
@@ -983,9 +996,12 @@ onMounted(() => {
 
 <Cells caption="order_id INT32: bit-packing alone needs 17 bits" :vals="ids" tint="purple" :w="50" note="192 bits" />
 <Cells class="t-delta mt-3" caption="delta encoding" :vals="encoded" tint="purple" :w="50" />
+<div class="t-bin mt-3">
+<Bits class="dbin" caption="deltas as INT32: still 32 bits each" :values="deltas" :width="32" :sig="2" tint="purple" note="160 bits" />
+</div>
 <div class="t-casc flex items-end gap-4 mt-3">
-<Cells caption="first value" :vals="[ids[0]]" tint="purple" :w="50" />
-<Bits caption="deltas, bit-packed: 2 bits each" :values="deltas" :width="2" packed tint="purple" note="32 + 5 × 2 = 42 bits" />
+<Cells caption="header: 48 bits" :vals="deltaHeader" tint="grey" />
+<Bits class="dpacked" caption="deltas, bit-packed: 2 bits each" :values="deltas" :width="2" packed tint="purple" note="58 bits" />
 </div>
 
 ---

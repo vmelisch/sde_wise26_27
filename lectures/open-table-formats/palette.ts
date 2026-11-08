@@ -7,6 +7,7 @@ export const TINT = {
   yellow: 'var(--tint-yellow)',
   purple: 'var(--tint-purple)',
   red: 'var(--tint-red)',
+  grey: 'var(--tint-grey)',
 } as const
 
 export type Tint = keyof typeof TINT
