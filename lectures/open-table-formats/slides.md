@@ -12,6 +12,8 @@ presenter: dev
 
 From CSV to Parquet, from data lakes to lakehouses
 
+<SlidesQr class="cover-qr" />
+
 ---
 layout: two-cols-header
 columns: 50fr 50fr
@@ -230,6 +232,12 @@ columns: 45fr 55fr
 transition: fade
 ---
 
+<script setup lang="ts">
+// 1401 as text (one byte per digit) and as a 2-byte integer
+const textBytes = [...'1401'].map(d => `'${d}'`)
+const intBytes = [1401 >> 8, 1401 & 0xFF].map(b => `0x${b.toString(16).padStart(2, '0')}`)
+</script>
+
 # CSV Limits
 
 ::left::
@@ -254,10 +262,62 @@ transition: fade
 
 <p class="fig-note">Running example: orders of a web shop</p>
 
+<!-- one example per bullet, each shown only while its bullet is the newest -->
+<div class="ex-stack mt-4">
+<div v-click="[1, 2]">
+
+<CsvRead caption="an order without a country" line="2026-10-13,105,,15.00" />
+
+`country`: `NULL` or `{sql} ''`? Nothing in the file says which.
+
+</div>
+<div v-click="[2, 3]">
+
+<CsvRead caption="written by a program with a different column order" line="Germany,105,2026-10-13,15.00" :bad="[0, 2]" />
+
+Still valid CSV: nothing checks that a value fits its column.
+
+</div>
+<div v-click="[3, 4]">
+
+<CsvRead caption='a country with a comma, split at every ","' line='2026-10-13,105,"Korea, Republic of",15.00' split :bad="[2, 3]" note="5 fields" />
+
+A reader must track quotes, not just split at `,`.
+
+</div>
+<div v-click="[4, 5]" style="--slidev-code-font-size: 11px">
+
+```sql
+SELECT sum(⟦parse:parse_decimal(revenue)⟧)  -- '19.99' → 19.99
+FROM 'orders.csv';                  -- for every row, on every query
+```
+
+</div>
+<div v-click="[5, 6]">
+
+<Cells caption="1401 as text: one byte per digit" :vals="textBytes" tint="purple" :w="30" note="4 B" />
+<Cells class="mt-2" caption="1401 as INT16" :vals="intBytes" tint="purple" :w="30" note="2 B" />
+
+</div>
+<div v-click="[6, 7]">
+
+<LineScan :row="3" />
+
+</div>
+<div v-click="7">
+
+<CsvRead caption='row 1, exported by German Excel and read with ","' line="2026-10-08;101;Germany;19,99" :bad="[0, 1]" note="2 fields" />
+
+</div>
+</div>
+
 ---
 layout: two-cols-header
 columns: 45fr 55fr
-transition: fade
+# the figure stays as it is on Fixed Size Data (1): a true crossfade, and no
+# fading of the values by the morph either
+transition: dissolve
+morph: { fade: false }
 ---
 
 <script setup lang="ts">
@@ -319,6 +379,29 @@ columns: 45fr 55fr
 transition: fade
 ---
 
+# Fixed Size Data (1)
+
+::left::
+
+## Problem
+
+- Variable-length rows: finding a value requires scanning all preceding rows
+  - e.g. `{sql} SELECT sum(revenue) FROM orders`
+- DBMSs maintain an offset list per row
+
+::right::
+
+<FileView stage="binary" />
+
+---
+layout: two-cols-header
+columns: 45fr 55fr
+# the figure stays as it is on Columnar Data (1): a true crossfade, and no
+# fading of the values by the morph either
+transition: dissolve
+morph: { fade: false }
+---
+
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useTl } from 'slidev-addon-gsap'
@@ -338,7 +421,7 @@ onMounted(() => {
 })
 </script>
 
-# Fixed Size Data
+# Fixed Size Data (2)
 
 ::left::
 
@@ -360,19 +443,63 @@ onMounted(() => {
 </div>
 <div class="t-sum">
 
-- `sum(revenue)`: `file[i * 20 + 12]` for every row i
+- `{sql} sum(revenue)`: `file[i * 20 + 12]` for every row i
 - String interning: each distinct string stored once
 
 </div>
 
 ::right::
 
-<FileView stage="fixed" />
+<FileView stage="fixed" mark-dict />
 
 ---
 layout: two-cols-header
 columns: 45fr 55fr
 transition: fade
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: summing revenue loads every page, but uses only its revenue bytes
+    .to('.fv-rows', { rowGap: 9, duration: 0.4 })
+    .fadeIn('.fv-page-box, .fv-page-label', {}, '<')
+    .to('.fv-cell:not(.fv-c3)', { opacity: 0.25, duration: 0.4 }, '<')
+    .fadeIn('.t-pages', {}, '<')
+    .step()
+})
+</script>
+
+# Columnar Data (1)
+
+::left::
+
+## Problem
+
+- Analytical queries access few columns; DWH tables often have hundreds
+- Row layout: most of every loaded page is skipped
+
+<div class="t-pages">
+
+- `{sql} sum(revenue)`: loads all 3 pages (180 B), uses 72 B
+
+</div>
+
+::right::
+
+<FileView stage="fixed" :pages="3" :page-col="3" />
+
+---
+layout: two-cols-header
+columns: 45fr 55fr
+# the figure stays as it is on PAX Layout (1): a true crossfade, and no
+# fading of the values by the morph either
+transition: dissolve
+morph: { fade: false }
 ---
 
 <script setup lang="ts">
@@ -389,7 +516,7 @@ onMounted(() => {
 })
 </script>
 
-# Columnar Data
+# Columnar Data (2)
 
 ::left::
 
@@ -397,6 +524,7 @@ onMounted(() => {
 
 - Analytical queries access few columns; DWH tables often have hundreds
 - Row layout: most of every loaded page is skipped
+- `{sql} sum(revenue)`: loads all 3 pages (180 B), uses 72 B
 
 ## Columnar layout
 
@@ -404,12 +532,50 @@ onMounted(() => {
 
 <div class="t-sum">
 
-- `sum(revenue)`: one sequential range, `file[108:180]`
+- `{sql} sum(revenue)`: one sequential range, `file[108:180]`
 - Sequential access, SIMD vectorisation by the compiler
 
 </div>
 
 - Trade-off: the file is no longer human-readable
+
+::right::
+
+<FileView stage="columnar" />
+
+---
+layout: two-cols-header
+columns: 45fr 55fr
+transition: fade
+---
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useTl } from 'slidev-addon-gsap'
+
+const tl = useTl()
+onMounted(() => {
+  tl.step()
+    // click 1: row 4 is spread over all four column chunks
+    .to('.fv-cell:not(.fv-r4)', { opacity: 0.25, duration: 0.4 })
+    .fadeIn('.t-row', {}, '<')
+    .step()
+})
+</script>
+
+# PAX Layout (1)
+
+::left::
+
+## Problem
+
+- Reconstructing a row: one access per column, potentially GBs apart
+
+<div class="t-row">
+
+- Row 4: `file[16]`, `file[52]`, `file[88]`, `file[140]`
+
+</div>
 
 ::right::
 
@@ -435,13 +601,14 @@ onMounted(() => {
 })
 </script>
 
-# PAX Layout
+# PAX Layout (2)
 
 ::left::
 
 ## Problem
 
 - Reconstructing a row: one access per column, potentially GBs apart
+- Row 4: `file[16]`, `file[52]`, `file[88]`, `file[140]`
 
 ## Partition Attributes Across (PAX)
 
@@ -833,7 +1000,15 @@ import { useTl } from 'slidev-addon-gsap'
 const tl = useTl()
 onMounted(() => {
   tl.step()
-    // click 1: Parquet puts a codec on top of the encodings
+    // click 1: byte sequences that already occurred earlier in the file
+    .to('.lz', { '--hl': 1, duration: 0.5 })
+    .fadeIn('.lz-in .lz-note', {}, '<')
+    .step()
+    // click 2: each of them becomes a back-reference to the earlier bytes
+    .fadeOut('.lz-in')
+    .fadeIn('.lz-out', {}, '<')
+    .step()
+    // click 3: Parquet puts a codec on top of the encodings
     .fadeIn('.t-parquet')
     .step()
 })
@@ -857,7 +1032,9 @@ onMounted(() => {
 
 ::right::
 
-<div class="t-parquet">
+<Lz77 />
+
+<div class="t-parquet mt-5">
 <div class="pipe">
 <div class="arch-layer" style="background: var(--tint-purple)">encodings<small>dictionary, RLE, delta, …</small></div>
 <FlowArrow />

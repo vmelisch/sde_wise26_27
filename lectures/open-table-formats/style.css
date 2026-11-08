@@ -145,12 +145,56 @@
   font-size: var(--db-fs-small);
 }
 
+/* Slide transition `dissolve` (frontmatter `transition: dissolve`): the
+   leaving slide, made opaque, fades out on top of the entering one, which is
+   there in full from the start. Unlike `fade`, which fades both and lets the
+   slide dip towards white halfway, what both slides share stays perfectly
+   still (the figure from Fixed Size Data to Columnar Data (1)). */
+.dissolve-leave-active {
+  z-index: 1;
+  background: #fff;
+  transition: opacity var(--slidev-transition-duration) ease;
+}
+.dissolve-leave-to {
+  opacity: 0;
+}
+
+/* QR code of the slides on the cover (components/SlidesQr.vue): bottom right
+   of the white area, next to the title. The cover's title box is the
+   positioned parent; it starts 30px below the navy band. */
+.cover-qr {
+  position: absolute;
+  top: -16px;
+  right: 0;
+}
+
 /* Small grey label under a figure. */
 .fig-note {
   margin-top: 6px;
   font-size: var(--db-fs-caption);
   font-style: italic;
   color: var(--db-text);
+}
+
+/* Examples that take turns in one spot (CSV Limits: one per bullet). All sit
+   in the same grid cell, so the spot keeps the size of the largest and
+   nothing below jumps; a one-line verdict under a figure is set small. */
+.ex-stack {
+  display: grid;
+  /* as in code: Fira Code would draw 0x05 as 0×05 */
+  font-variant-ligatures: none;
+}
+.ex-stack > * {
+  grid-area: 1 / 1;
+}
+.ex-stack p {
+  margin: 6px 0 0;
+  font-size: var(--db-fs-caption);
+}
+/* the parsing that every query pays for (.shiki: outrank Slidev's
+   `html:not(.dark) .shiki span` token colours) */
+.ex-stack .shiki :is(.mark-parse, .mark-parse span) {
+  color: var(--db-accent5);
 }
 
 /* Paper / spec reference on a slide. */

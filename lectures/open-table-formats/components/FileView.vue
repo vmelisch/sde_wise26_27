@@ -19,10 +19,21 @@ import { ARRIVAL, COLS, csvText, DICT, GROUP_SIZE, ROWS, SCRAMBLED } from '../or
 // (0…1) greys values out and hides their labels. The memory strip above the
 // drawing repeats every value in address order, with the same classes, so a
 // timeline that dims values shows where the rest lies in the file.
+// `pages` (row layouts only) groups every `pages` rows into a page drawn as a
+// box (.fv-pg<n>, hooks .fv-page-box and .fv-page-label), as a row store loads
+// them; with `pageCol` the label says how many of the page's bytes a query on
+// that column uses. Without `pages` the layout is exactly as before.
+// `markDict` tints the dictionary in the footer like the country ids that
+// point into it (hook .fv-ft-mark); the line keeps its box, so morphs to and
+// from an unmarked footer don't move it.
 const props = withDefaults(defineProps<{
   stage: 'csv' | 'binary' | 'fixed' | 'columnar' | 'rowgroups' | 'zonemaps' | 'parquet'
   order?: 'scrambled' | 'arrival'
+  pages?: number
+  pageCol?: number
+  markDict?: boolean
 }>(), { order: 'scrambled' })
+const DICT_TINT = COLS.find(c => c.name === 'country')!.tint
 
 const STAGES = ['csv', 'binary', 'fixed', 'columnar', 'rowgroups', 'zonemaps', 'parquet']
 const reached = (s: string) => STAGES.indexOf(props.stage) >= STAGES.indexOf(s)
@@ -35,6 +46,11 @@ const layout = computed(() =>
   reached('rowgroups') ? 'groups' : reached('columnar') ? 'chunks' : 'rows')
 const groups = computed(() =>
   [0, 1, 2].map(g => order.value.slice(g * GROUP_SIZE, (g + 1) * GROUP_SIZE)))
+// rows in pages of `pages` rows; without pages, one wrapper that takes no space
+const pageRows = computed(() => {
+  const n = props.pages ?? order.value.length
+  return Array.from({ length: Math.ceil(order.value.length / n) }, (_, p) => order.value.slice(p * n, (p + 1) * n))
+})
 
 function bytes(r: number, c: number) {
   const type = COLS[c].type
@@ -50,6 +66,14 @@ function format(c: number, v: Value) {
   return csvText(c, v)
 }
 const label = (r: number, c: number) => format(c, ROWS[r][c])
+
+function pageLabel(p: number) {
+  const rows = pageRows.value[p]
+  const size = rows.reduce((n, r) => n + COLS.reduce((m, _c, c) => m + bytes(r, c), 0), 0)
+  if (props.pageCol == null) return `page ${p}: ${size} B`
+  const used = rows.reduce((n, r) => n + bytes(r, props.pageCol!), 0)
+  return `page ${p}: ${used} of ${size} B used`
+}
 
 const cellStyle = (r: number, c: number) => props.stage === 'csv'
   ? undefined
@@ -116,14 +140,20 @@ function zone(g: number, c: number) {
       <div v-if="props.stage === 'csv'" class="fv-row fv-csvhead">
         <span class="fv-rowno" />{{ COLS.map(c => c.name).join(',') }}
       </div>
-      <div v-for="(r, pos) in order" :key="r" class="fv-row">
-        <span class="fv-rowno">{{ pos }}</span>
-        <template v-for="(col, c) in COLS" :key="col.name">
-          <span v-if="props.stage === 'csv' && c > 0" class="fv-sep">,</span>
-          <span class="fv-cell" :class="cellClass(r, c)" :data-morph="`v${r}-${c}`" :style="cellStyle(r, c)">
-            <span>{{ label(r, c) }}</span>
-          </span>
+      <div v-for="(rows, p) in pageRows" :key="p" class="fv-page" :class="props.pages && ['fv-paged', `fv-pg${p}`]">
+        <template v-if="props.pages">
+          <span class="fv-page-box" />
+          <span class="fv-page-label">{{ pageLabel(p) }}</span>
         </template>
+        <div v-for="r in rows" :key="r" class="fv-row">
+          <span class="fv-rowno">{{ order.indexOf(r) }}</span>
+          <template v-for="(col, c) in COLS" :key="col.name">
+            <span v-if="props.stage === 'csv' && c > 0" class="fv-sep">,</span>
+            <span class="fv-cell" :class="cellClass(r, c)" :data-morph="`v${r}-${c}`" :style="cellStyle(r, c)">
+              <span>{{ label(r, c) }}</span>
+            </span>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -154,7 +184,7 @@ function zone(g: number, c: number) {
       <div class="fv-ft-title" data-morph="ft-title">footer (metadata)</div>
       <div data-morph="ft-schema">schema: {{ COLS.map(c => `${c.name} ${c.type}`).join(', ') }}</div>
       <div v-if="reached('fixed')" data-morph="ft-dict">
-        dictionary country: {{ DICT.map((s, i) => `${i} ${s}`).join(', ') }}
+        <span :class="{ 'fv-ft-mark': props.markDict }" :style="{ '--tint': DICT_TINT }">dictionary country: {{ DICT.map((s, i) => `${i} ${s}`).join(', ') }}</span>
       </div>
       <div v-if="props.stage === 'columnar'" data-morph="ft-index">
         column offsets: created_at 0, product_id 36, country 72, revenue 108
@@ -271,6 +301,33 @@ function zone(g: number, c: number) {
 .fv-groups {
   gap: 6px;
 }
+/* a page wrapper takes no space of its own unless the file is drawn in pages */
+.fv-page {
+  display: contents;
+}
+.fv-paged {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: fit-content;
+}
+/* drawn around the page's rows, outside the layout */
+.fv-page-box {
+  position: absolute;
+  inset: -2px -3px;
+  border: 1.5px solid var(--db-text);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.fv-page-label {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%);
+  color: var(--db-text);
+  white-space: nowrap;
+}
 .fv-row,
 .fv-chunk,
 .fv-rg-chunks {
@@ -337,6 +394,13 @@ function zone(g: number, c: number) {
   padding-top: 6px;
   border-top: 1px dashed var(--db-table-rule);
   color: var(--db-text);
+}
+/* padding outside the text, so the tinted line keeps its place */
+.fv-ft-mark {
+  margin: 0 -4px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--tint);
 }
 .fv-ft-title {
   font-weight: 700;
